@@ -6,230 +6,67 @@
 <title>IT Procurement KPI Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  /* ── CONFIG NOTE ─────────────────────────────────────────────────────────────
-     Set the three CONFIG values at the top of the <script> block below:
-       TENANT_ID       – your Azure/M365 tenant ID (GUID)
-       CLIENT_ID       – App registration client ID (GUID)
-       EXCEL_FILE_PATH – SharePoint-relative path to the workbook, e.g.
-                         /sites/ITSourcing/Shared Documents/Procurement_KPI_Data.xlsx
-     The app registration needs Files.Read (or Files.Read.All) delegated scope.
-  ──────────────────────────────────────────────────────────────────────────── */
-
   :root {
     --c-navy:   #1F3864;
     --c-blue:   #2E75B6;
     --c-teal:   #1D9E75;
     --c-amber:  #BA7517;
     --c-purple: #534AB7;
-    --c-red:    #A32D2D;
-    --c-gray:   #595959;
     --c-border: #E5E7EB;
     --c-bg:     #F7F8FA;
     --c-white:  #FFFFFF;
     --c-text:   #1a1a2e;
     --c-muted:  #6B7280;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--c-bg); color: var(--c-text); min-height: 1200px; }
 
-  body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: var(--c-bg);
-    color: var(--c-text);
-    min-height: 1200px;
-    padding: 0;
-  }
-
-  /* ── Header ── */
   .dash-header {
-    background: var(--c-navy);
-    padding: 18px 28px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    background: var(--c-navy); padding: 18px 28px;
+    display: flex; align-items: center; justify-content: space-between;
   }
-  .dash-header-left h1 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #fff;
-    letter-spacing: -0.02em;
-  }
-  .dash-header-left p {
-    font-size: 12px;
-    color: rgba(255,255,255,0.6);
-    margin-top: 2px;
-  }
-  .dash-header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  #statusBadge {
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 99px;
-    font-weight: 500;
-  }
-  .status-loading { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); }
-  .status-live    { background: #d1fae5; color: #065f46; }
-  .status-error   { background: #fee2e2; color: #991b1b; }
-  #lastUpdated { font-size: 11px; color: rgba(255,255,255,0.5); }
+  .dash-header-left h1 { font-size: 20px; font-weight: 600; color: #fff; letter-spacing: -0.02em; }
+  .dash-header-left p  { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+  .dash-header-right   { text-align: right; }
+  .dash-header-right p { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .dash-header-right span { font-size: 13px; font-weight: 500; color: #fff; }
 
-  /* ── Body ── */
-  .dash-body { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .dash-body { padding: 20px 24px; }
 
-  /* ── KPI Grid ── */
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .kpi-card {
-    background: var(--c-white);
-    border: 1px solid var(--c-border);
-    border-radius: 10px;
-    padding: 16px 18px;
-    position: relative;
-    overflow: hidden;
-  }
-  .kpi-accent {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 3px;
-  }
-  .kpi-label {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--c-muted);
-    margin-bottom: 8px;
-    margin-top: 4px;
-  }
-  .kpi-value {
-    font-size: 30px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    color: var(--c-text);
-    line-height: 1;
-    margin-bottom: 6px;
-  }
-  .kpi-delta {
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi-card { background: var(--c-white); border: 1px solid var(--c-border); border-radius: 10px; padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi-accent { position: absolute; top: 0; left: 0; width: 100%; height: 3px; }
+  .kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--c-muted); margin-bottom: 8px; margin-top: 4px; }
+  .kpi-value { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; color: var(--c-text); line-height: 1; margin-bottom: 6px; }
+  .kpi-delta { font-size: 12px; }
 
-  /* ── Chart Row ── */
-  .charts-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-  .chart-card {
-    background: var(--c-white);
-    border: 1px solid var(--c-border);
-    border-radius: 10px;
-    padding: 18px 20px;
-  }
+  .charts-row { display: grid; grid-template-columns: minmax(0,1.65fr) minmax(0,1fr); gap: 12px; margin-bottom: 12px; }
+  .chart-card { background: var(--c-white); border: 1px solid var(--c-border); border-radius: 10px; padding: 18px 20px; }
   .card-title { font-size: 13px; font-weight: 600; color: var(--c-text); margin-bottom: 2px; }
   .card-sub   { font-size: 11px; color: var(--c-muted); margin-bottom: 14px; }
 
-  /* ── Expiring table ── */
-  .expiry-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--c-border);
-  }
+  .expiry-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--c-border); }
   .expiry-row:last-child { border-bottom: none; }
   .expiry-vendor { font-size: 13px; font-weight: 500; }
   .expiry-date   { font-size: 11px; color: var(--c-muted); margin-top: 1px; }
-  .badge {
-    font-size: 11px; font-weight: 600;
-    padding: 3px 9px; border-radius: 99px;
-  }
-  .badge-red    { background: #FEE2E2; color: #991B1B; }
-  .badge-amber  { background: #FEF3C7; color: #92400E; }
-  .badge-green  { background: #D1FAE5; color: #065F46; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; }
+  .badge-red   { background: #FEE2E2; color: #991B1B; }
+  .badge-amber { background: #FEF3C7; color: #92400E; }
+  .badge-green { background: #D1FAE5; color: #065F46; }
 
-  /* ── Bottom Row ── */
-  .bottom-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-  }
+  .bottom-row { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
 
-  /* ── Pipeline bars ── */
   .pipeline-wrap { margin-bottom: 11px; }
-  .pipeline-label-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    margin-bottom: 4px;
-  }
+  .pipeline-label-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
   .pipeline-label { color: var(--c-muted); }
   .pipeline-val   { font-weight: 600; color: var(--c-text); }
   .bar-track { background: #F3F4F6; border-radius: 99px; height: 6px; overflow: hidden; }
-  .bar-fill  { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+  .bar-fill  { height: 100%; border-radius: 99px; }
 
-  /* ── Skeleton loading ── */
-  .skeleton {
-    background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.4s infinite;
-    border-radius: 4px;
-  }
-  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-
-  /* ── Login overlay ── */
-  #loginOverlay {
-    position: fixed; inset: 0;
-    background: rgba(31,56,100,0.96);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 100;
-  }
-  .login-card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 40px 44px;
-    text-align: center;
-    max-width: 380px;
-    width: 90%;
-  }
-  .login-card h2 { font-size: 18px; color: var(--c-navy); margin-bottom: 8px; }
-  .login-card p  { font-size: 13px; color: var(--c-muted); margin-bottom: 24px; line-height: 1.6; }
-  .login-btn {
-    background: var(--c-blue); color: #fff;
-    border: none; border-radius: 6px;
-    padding: 11px 28px; font-size: 14px; font-weight: 600;
-    cursor: pointer; width: 100%;
-    transition: background 0.15s;
-  }
-  .login-btn:hover { background: #1F5FA6; }
-
-  /* ── Error banner ── */
-  #errorBanner {
-    display: none;
-    background: #FEE2E2; color: #991B1B;
-    border: 1px solid #FECACA;
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-size: 13px;
-    margin-bottom: 14px;
-  }
-
-  .stamp {
-    font-size: 11px; color: var(--c-muted);
-    margin-top: 18px; text-align: right;
-  }
+  .stamp { font-size: 11px; color: var(--c-muted); margin-top: 18px; text-align: right; }
 
   @media (max-width: 900px) {
-    .kpi-grid  { grid-template-columns: repeat(2, 1fr); }
+    .kpi-grid   { grid-template-columns: repeat(2,1fr); }
     .charts-row { grid-template-columns: 1fr; }
     .bottom-row { grid-template-columns: 1fr; }
   }
@@ -237,60 +74,48 @@
 </head>
 <body>
 
-<!-- Login overlay -->
-<div id="loginOverlay">
-  <div class="login-card">
-    <h2>IT Procurement Dashboard</h2>
-    <p>Sign in with your HNI Microsoft 365 account to load live KPI data from SharePoint.</p>
-    <button class="login-btn" onclick="signIn()">Sign in with Microsoft</button>
-  </div>
-</div>
-
-<!-- Header -->
 <div class="dash-header">
   <div class="dash-header-left">
     <h1>IT Procurement · KPI Dashboard</h1>
     <p>HNI Corporation &nbsp;·&nbsp; FY2026</p>
   </div>
   <div class="dash-header-right">
-    <span id="statusBadge" class="status-loading">Loading…</span>
-    <span id="lastUpdated"></span>
+    <span>HNI Corporation</span>
+    <p id="lastUpdated"></p>
   </div>
 </div>
 
-<!-- Body -->
 <div class="dash-body">
-  <div id="errorBanner"></div>
 
-  <!-- KPI Cards -->
+  <!-- ── KPI Cards ── -->
   <div class="kpi-grid">
     <div class="kpi-card">
       <div class="kpi-accent" style="background:var(--c-teal)"></div>
       <div class="kpi-label">Cost Savings / Avoidance</div>
-      <div class="kpi-value" id="v-savings">—</div>
+      <div class="kpi-value" id="v-savings"></div>
       <div class="kpi-delta" id="d-savings" style="color:var(--c-teal)"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-accent" style="background:var(--c-amber)"></div>
       <div class="kpi-label">Contracts Expiring (90 days)</div>
-      <div class="kpi-value" id="v-expiring">—</div>
+      <div class="kpi-value" id="v-expiring"></div>
       <div class="kpi-delta" id="d-expiring" style="color:var(--c-amber)"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-accent" style="background:var(--c-blue)"></div>
       <div class="kpi-label">Active Vendor Contracts</div>
-      <div class="kpi-value" id="v-vendors">—</div>
+      <div class="kpi-value" id="v-vendors"></div>
       <div class="kpi-delta" id="d-vendors" style="color:var(--c-muted)"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-accent" style="background:var(--c-purple)"></div>
       <div class="kpi-label">Renewal Pipeline Value</div>
-      <div class="kpi-value" id="v-pipeline">—</div>
+      <div class="kpi-value" id="v-pipeline"></div>
       <div class="kpi-delta" id="d-pipeline" style="color:var(--c-muted)"></div>
     </div>
   </div>
 
-  <!-- Charts Row -->
+  <!-- ── Charts Row ── -->
   <div class="charts-row">
     <div class="chart-card">
       <div class="card-title">Monthly savings vs. target</div>
@@ -302,17 +127,11 @@
     <div class="chart-card">
       <div class="card-title">Expiring contracts</div>
       <div class="card-sub">Sorted by urgency</div>
-      <div id="expiryList">
-        <div class="expiry-row"><div class="skeleton" style="height:14px;width:60%"></div><div class="skeleton" style="height:20px;width:60px"></div></div>
-        <div class="expiry-row"><div class="skeleton" style="height:14px;width:50%"></div><div class="skeleton" style="height:20px;width:60px"></div></div>
-        <div class="expiry-row"><div class="skeleton" style="height:14px;width:55%"></div><div class="skeleton" style="height:20px;width:60px"></div></div>
-        <div class="expiry-row"><div class="skeleton" style="height:14px;width:45%"></div><div class="skeleton" style="height:20px;width:60px"></div></div>
-        <div class="expiry-row"><div class="skeleton" style="height:14px;width:65%"></div><div class="skeleton" style="height:20px;width:60px"></div></div>
-      </div>
+      <div id="expiryList"></div>
     </div>
   </div>
 
-  <!-- Bottom Row -->
+  <!-- ── Bottom Row ── -->
   <div class="bottom-row">
     <div class="chart-card">
       <div class="card-title">Renewal pipeline</div>
@@ -336,328 +155,160 @@
     </div>
   </div>
 
-  <p class="stamp" id="dataStamp">Data source: SharePoint · Procurement_KPI_Data.xlsx</p>
+  <p class="stamp" id="dataStamp"></p>
 </div>
 
-<!-- MSAL -->
-<script src="https://unpkg.com/@azure/msal-browser@3.10.0/lib/msal-browser.min.js"></script>
-
 <script>
-// ═══════════════════════════════════════════════════════════════════════════
-//  ★ CONFIGURATION — Update these three values before deploying ★
-// ═══════════════════════════════════════════════════════════════════════════
-const CONFIG = {
-  TENANT_ID:       "bcbcccba-4b37-4e3b-8ab0-869eb2d2fc29",        // e.g. "d1234567-abcd-..."
-  CLIENT_ID:       "c5a9e693-9593-4a33-b887-1dbbb07eb11a",        // App registration client ID
-  EXCEL_FILE_PATH: "/sites/hniitprocurement/Shared Documents/Procurement_KPI_Data.xlsx",
-  // SharePoint site hostname (usually companyname.sharepoint.com)
-  SP_HOST:         "hnicorporation.sharepoint.com"
+// ═══════════════════════════════════════════════════════════
+//  ★  UPDATE THIS DATA BLOCK WHEN YOU REFRESH THE NUMBERS  ★
+// ═══════════════════════════════════════════════════════════
+const DATA = {
+  // Headline KPIs
+  savings:        "$1.24M",
+  savingsDelta:   "↑ 18% vs. prior year",
+  expiring:       "7",
+  expiringDelta:  "3 require immediate action",
+  vendors:        "42",
+  vendorsDelta:   "Across HNI + KII",
+  pipeline:       "$3.8M",
+  pipelineDelta:  "FY2026 total exposure",
+
+  // Monthly savings chart  [month, actual, target]
+  monthly: [
+    ["Oct", 142000, 150000],
+    ["Nov",  88000, 150000],
+    ["Dec", 210000, 150000],
+    ["Jan", 195000, 200000],
+    ["Feb", 320000, 200000],
+    ["Mar", 285000, 200000],
+  ],
+
+  // Expiring contracts  [vendor, date, value, status]
+  // status: "Critical" (<30 days) | "At Risk" (30-90) | "On Track" (90+)
+  expiry: [
+    ["VMware / Broadcom", "Apr 30, 2026",  1200000, "Critical"],
+    ["Oracle Fusion",     "May 15, 2026",   890000, "Critical"],
+    ["Jamf MDM",          "Jun 1, 2026",    420000, "At Risk"],
+    ["Zoom",              "Jul 1, 2026",    180000, "At Risk"],
+    ["Adobe CC",          "Sep 15, 2026",    95000, "On Track"],
+  ],
+
+  // Renewal pipeline  [vendor, value]
+  pipeline_items: [
+    ["VMware / Broadcom", 1200000],
+    ["Oracle",             890000],
+    ["Microsoft 365",      740000],
+    ["Jamf",               420000],
+    ["Other",              550000],
+  ],
+
+  // Vendor distribution  [category, count]
+  vendors_dist: [
+    ["Infrastructure", 16],
+    ["SaaS/Apps",      13],
+    ["Security",        8],
+    ["Other",           5],
+  ],
+
+  // Savings by initiative  [initiative, value]
+  initiatives: [
+    ["Consolidation",  480000],
+    ["Renegotiation",  360000],
+    ["Right-sizing",   240000],
+    ["New deals",      160000],
+  ],
+
+  // Last updated label
+  lastUpdated: "April 2026",
 };
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 
-const SCOPES = ["Files.Read", "Sites.Read.All"];
-let msalApp, charts = {};
+const P = ["#534AB7","#378ADD","#1D9E75","#BA7517","#888780"];
+const fmt$ = v => "$" + (v >= 1e6 ? (v/1e6).toFixed(2)+"M" : (v/1000).toFixed(0)+"K");
 
-const PALETTE = {
-  teal: "#1D9E75", blue: "#378ADD", amber: "#BA7517",
-  purple: "#534AB7", red: "#A32D2D", gray: "#888780", green: "#639922"
-};
+function set(id, val) { const e = document.getElementById(id); if(e) e.textContent = val; }
 
-// ── MSAL init ──────────────────────────────────────────────────────────────
-function initMsal() {
-  msalApp = new msal.PublicClientApplication({
-    auth: {
-      clientId: CONFIG.CLIENT_ID,
-      authority: `https://login.microsoftonline.com/${CONFIG.TENANT_ID}`,
-      redirectUri: window.location.href.split("?")[0]
-    },
-    cache: { cacheLocation: "sessionStorage" }
-  });
-}
+// KPI cards
+set("v-savings",  DATA.savings);       set("d-savings",  DATA.savingsDelta);
+set("v-expiring", DATA.expiring);      set("d-expiring", DATA.expiringDelta);
+set("v-vendors",  DATA.vendors);       set("d-vendors",  DATA.vendorsDelta);
+set("v-pipeline", DATA.pipeline);      set("d-pipeline", DATA.pipelineDelta);
+set("lastUpdated", "Updated " + DATA.lastUpdated);
+set("dataStamp", "Last updated: " + DATA.lastUpdated + " · Edit the DATA block in index.html to refresh");
 
-async function signIn() {
-  try {
-    await msalApp.loginPopup({ scopes: SCOPES });
-    document.getElementById("loginOverlay").style.display = "none";
-    loadDashboard();
-  } catch(e) {
-    showError("Sign-in failed: " + e.message);
-  }
-}
-
-async function getToken() {
-  const accounts = msalApp.getAllAccounts();
-  if (!accounts.length) return null;
-  try {
-    const res = await msalApp.acquireTokenSilent({ scopes: SCOPES, account: accounts[0] });
-    return res.accessToken;
-  } catch {
-    const res = await msalApp.acquireTokenPopup({ scopes: SCOPES });
-    return res.accessToken;
-  }
-}
-
-// ── Graph API helpers ──────────────────────────────────────────────────────
-async function graphGet(url, token) {
-  const r = await fetch("https://graph.microsoft.com/v1.0" + url, {
-    headers: { Authorization: "Bearer " + token }
-  });
-  if (!r.ok) throw new Error(`Graph error ${r.status}: ${await r.text()}`);
-  return r.json();
-}
-
-// Read a named table from the workbook
-async function readTable(token, driveId, itemId, tableName) {
-  const data = await graphGet(
-    `/drives/${driveId}/items/${itemId}/workbook/tables/${tableName}/rows`,
-    token
-  );
-  return data.value.map(r => r.values[0]);  // rows of arrays
-}
-
-// Read a named range
-async function readRange(token, driveId, itemId, sheetName, rangeAddr) {
-  const enc = encodeURIComponent(sheetName);
-  const data = await graphGet(
-    `/drives/${driveId}/items/${itemId}/workbook/worksheets/${enc}/range(address='${rangeAddr}')`,
-    token
-  );
-  return data.values;  // 2D array
-}
-
-// ── Load dashboard ─────────────────────────────────────────────────────────
-async function loadDashboard() {
-  setBadge("loading");
-  try {
-    const token = await getToken();
-    if (!token) return;
-
-    // Resolve the file's driveId + itemId
-    const spPath = CONFIG.EXCEL_FILE_PATH;
-    const fileInfo = await graphGet(
-      `/sites/${CONFIG.SP_HOST}:${spPath.split("/sites/")[1].split("/")[0]}:/drive/root:${spPath.split("/Shared Documents")[1]}`,
-      token
-    );
-    const driveId = fileInfo.parentReference.driveId;
-    const itemId  = fileInfo.id;
-
-    // Read KPI summary (A6:B11 on KPI_Summary sheet)
-    const kpiVals = await readRange(token, driveId, itemId, "KPI_Summary", "B6:B11");
-    // Read monthly savings (A15:C20)
-    const monthly = await readRange(token, driveId, itemId, "KPI_Summary", "A15:C20");
-    // Read pipeline (A24:B28)
-    const pipeline = await readRange(token, driveId, itemId, "KPI_Summary", "A24:B28");
-    // Read expiring contracts
-    const expiry = await readRange(token, driveId, itemId, "Expiring_Contracts", "A3:E9");
-    // Read vendor dist
-    const vendors = await readRange(token, driveId, itemId, "Vendor_Distribution", "A3:B6");
-    // Read initiatives
-    const initiatives = await readRange(token, driveId, itemId, "Savings_Initiatives", "A3:B6");
-
-    renderDashboard({ kpiVals, monthly, pipeline, expiry, vendors, initiatives });
-    setBadge("live");
-    document.getElementById("lastUpdated").textContent =
-      "Updated " + new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
-    document.getElementById("dataStamp").textContent =
-      "Live data · SharePoint · Procurement_KPI_Data.xlsx · " + new Date().toLocaleDateString();
-
-  } catch(e) {
-    console.error(e);
-    showError("Could not load Excel data: " + e.message + ". Check CONFIG values and app permissions.");
-    setBadge("error");
-    renderFallback();
-  }
-}
-
-// ── Render helpers ─────────────────────────────────────────────────────────
-function fmt$(v) { return "$" + (v >= 1000000 ? (v/1000000).toFixed(2) + "M" : (v >= 1000 ? (v/1000).toFixed(0) + "K" : v)); }
-
-function renderDashboard({ kpiVals, monthly, pipeline, expiry, vendors, initiatives }) {
-  // KPI cards
-  const [savings, savingsPct, expiring, urgent, activeVendors, pipelineVal] = kpiVals.map(r => r[0]);
-  set("v-savings",  fmt$(savings));
-  set("d-savings",  "↑ " + Math.round(savingsPct) + "% vs. prior year");
-  set("v-expiring", expiring);
-  set("d-expiring", urgent + " require immediate action");
-  set("v-vendors",  activeVendors);
-  set("d-vendors",  "Across HNI + KII");
-  set("v-pipeline", fmt$(pipelineVal));
-  set("d-pipeline", "FY2026 total exposure");
-
-  // Savings chart
-  renderSavingsChart(monthly);
-
-  // Expiry list
-  renderExpiryList(expiry);
-
-  // Pipeline bars
-  renderPipelineBars(pipeline);
-
-  // Vendor donut
-  renderVendorDonut(vendors);
-
-  // Initiatives
-  renderInitiativesChart(initiatives);
-}
-
-function set(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-
-function renderSavingsChart(rows) {
-  const labels  = rows.map(r => r[0]);
-  const actuals = rows.map(r => Number(r[1]));
-  const targets = rows.map(r => Number(r[2]));
-  if (charts.savings) charts.savings.destroy();
-  charts.savings = new Chart(document.getElementById("savingsChart"), {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        { label:"Actual", data: actuals, backgroundColor: PALETTE.purple, borderRadius: 3, barPercentage: 0.55 },
-        { label:"Target", data: targets, type:"line", borderColor: PALETTE.amber, borderWidth: 1.5,
-          borderDash:[4,3], pointRadius:0, fill:false }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend:{ display:false } },
-      scales: {
-        x: { ticks:{ font:{size:11}, color:"#9CA3AF" }, grid:{ display:false } },
-        y: { ticks:{ font:{size:11}, color:"#9CA3AF", callback: v => "$"+(v/1000)+"K" },
-             grid:{ color:"rgba(0,0,0,0.06)" }, border:{ display:false } }
-      }
+// Savings chart
+new Chart(document.getElementById("savingsChart"), {
+  type: "bar",
+  data: {
+    labels: DATA.monthly.map(r=>r[0]),
+    datasets: [
+      { label:"Actual", data: DATA.monthly.map(r=>r[1]), backgroundColor:"#534AB7", borderRadius:3, barPercentage:0.55 },
+      { label:"Target", data: DATA.monthly.map(r=>r[2]), type:"line", borderColor:"#BA7517",
+        borderWidth:1.5, borderDash:[4,3], pointRadius:0, fill:false }
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ ticks:{ font:{size:11}, color:"#9CA3AF" }, grid:{ display:false } },
+      y:{ ticks:{ font:{size:11}, color:"#9CA3AF", callback: v=>"$"+(v/1000)+"K" },
+          grid:{ color:"rgba(0,0,0,0.06)" }, border:{ display:false } }
     }
-  });
-}
+  }
+});
 
-function renderExpiryList(rows) {
-  const today = new Date();
-  const sorted = rows
-    .filter(r => r[0])
-    .map(r => {
-      const days = Math.max(0, Math.round((new Date(r[1]) - today) / 86400000));
-      return { vendor: r[0], date: r[1], days, value: Number(r[3]), status: r[4] };
-    })
-    .sort((a,b) => a.days - b.days)
-    .slice(0, 5);
+// Expiry list
+const badgeClass = s => s==="Critical" ? "badge-red" : s==="At Risk" ? "badge-amber" : "badge-green";
+document.getElementById("expiryList").innerHTML = DATA.expiry.map(r=>`
+  <div class="expiry-row">
+    <div>
+      <div class="expiry-vendor">${r[0]}</div>
+      <div class="expiry-date">${r[1]}</div>
+    </div>
+    <span class="badge ${badgeClass(r[3])}">${r[3]}</span>
+  </div>`).join("");
 
-  const html = sorted.map(c => {
-    const cls = c.days < 30 ? "badge-red" : c.days < 75 ? "badge-amber" : "badge-green";
-    const lbl = c.days < 30 ? c.days + " days" : c.days < 75 ? c.days + " days" : c.days + " days";
-    return `<div class="expiry-row">
-      <div>
-        <div class="expiry-vendor">${c.vendor}</div>
-        <div class="expiry-date">${c.date}</div>
-      </div>
-      <span class="badge ${cls}">${lbl}</span>
-    </div>`;
-  }).join("");
-  document.getElementById("expiryList").innerHTML = html;
-}
+// Pipeline bars
+const maxP = Math.max(...DATA.pipeline_items.map(r=>r[1]));
+document.getElementById("pipelineList").innerHTML = DATA.pipeline_items.map((r,i)=>`
+  <div class="pipeline-wrap">
+    <div class="pipeline-label-row">
+      <span class="pipeline-label">${r[0]}</span>
+      <span class="pipeline-val">${fmt$(r[1])}</span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill" style="width:${Math.round(r[1]/maxP*100)}%;background:${P[i%P.length]}"></div>
+    </div>
+  </div>`).join("");
 
-function renderPipelineBars(rows) {
-  const colors = [PALETTE.purple, PALETTE.blue, PALETTE.teal, PALETTE.amber, PALETTE.gray];
-  const max = Math.max(...rows.map(r => Number(r[1])));
-  const html = rows.map((r, i) => `
-    <div class="pipeline-wrap">
-      <div class="pipeline-label-row">
-        <span class="pipeline-label">${r[0]}</span>
-        <span class="pipeline-val">${fmt$(Number(r[1]))}</span>
-      </div>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:${Math.round(Number(r[1])/max*100)}%;background:${colors[i%colors.length]}"></div>
-      </div>
-    </div>`).join("");
-  document.getElementById("pipelineList").innerHTML = html;
-}
+// Vendor donut
+const vtotal = DATA.vendors_dist.reduce((a,b)=>a+b[1],0);
+new Chart(document.getElementById("vendorChart"), {
+  type:"doughnut",
+  data:{ labels: DATA.vendors_dist.map(r=>r[0]),
+         datasets:[{ data: DATA.vendors_dist.map(r=>r[1]), backgroundColor:P, borderWidth:0, hoverOffset:4 }] },
+  options:{ responsive:true, maintainAspectRatio:false, cutout:"68%", plugins:{ legend:{ display:false } } }
+});
+document.getElementById("vendorLegend").innerHTML = DATA.vendors_dist.map((r,i)=>`
+  <span style="display:flex;align-items:center;gap:4px;">
+    <span style="width:8px;height:8px;border-radius:2px;background:${P[i]};display:inline-block;"></span>
+    ${r[0]} ${Math.round(r[1]/vtotal*100)}%
+  </span>`).join("");
 
-function renderVendorDonut(rows) {
-  const colors = [PALETTE.purple, PALETTE.blue, PALETTE.teal, PALETTE.amber];
-  const labels = rows.map(r => r[0]);
-  const data   = rows.map(r => Number(r[1]));
-  const total  = data.reduce((a,b) => a+b, 0);
-  if (charts.vendor) charts.vendor.destroy();
-  charts.vendor = new Chart(document.getElementById("vendorChart"), {
-    type: "doughnut",
-    data: { labels, datasets:[{ data, backgroundColor: colors, borderWidth:0, hoverOffset:4 }] },
-    options: { responsive:true, maintainAspectRatio:false, cutout:"68%", plugins:{ legend:{ display:false } } }
-  });
-  const legend = labels.map((l,i) => `
-    <span style="display:flex;align-items:center;gap:4px;">
-      <span style="width:8px;height:8px;border-radius:2px;background:${colors[i]};display:inline-block;"></span>
-      ${l} ${Math.round(data[i]/total*100)}%
-    </span>`).join("");
-  document.getElementById("vendorLegend").innerHTML = legend;
-}
-
-function renderInitiativesChart(rows) {
-  const colors = [PALETTE.teal, PALETTE.purple, PALETTE.blue, PALETTE.gray];
-  if (charts.init) charts.init.destroy();
-  charts.init = new Chart(document.getElementById("initiativeChart"), {
-    type: "bar",
-    data: {
-      labels: rows.map(r => r[0]),
-      datasets:[{ data: rows.map(r => Number(r[1])), backgroundColor: colors, borderRadius:3, barPercentage:0.6 }]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false, indexAxis:"y",
-      plugins:{ legend:{ display:false } },
-      scales:{
-        x:{ ticks:{ font:{size:10}, color:"#9CA3AF", callback: v => "$"+(v/1000)+"K" },
-            grid:{ color:"rgba(0,0,0,0.06)" }, border:{ display:false } },
-        y:{ ticks:{ font:{size:11}, color:"#9CA3AF" }, grid:{ display:false } }
-      }
+// Initiatives chart
+new Chart(document.getElementById("initiativeChart"), {
+  type:"bar",
+  data:{ labels: DATA.initiatives.map(r=>r[0]),
+         datasets:[{ data: DATA.initiatives.map(r=>r[1]), backgroundColor:P, borderRadius:3, barPercentage:0.6 }] },
+  options:{
+    responsive:true, maintainAspectRatio:false, indexAxis:"y",
+    plugins:{ legend:{ display:false } },
+    scales:{
+      x:{ ticks:{ font:{size:10}, color:"#9CA3AF", callback: v=>"$"+(v/1000)+"K" },
+          grid:{ color:"rgba(0,0,0,0.06)" }, border:{ display:false } },
+      y:{ ticks:{ font:{size:11}, color:"#9CA3AF" }, grid:{ display:false } }
     }
-  });
-}
-
-function renderFallback() {
-  // Static sample data so the page isn't blank on config errors
-  renderSavingsChart([
-    ["Oct",142000,150000],["Nov",88000,150000],["Dec",210000,150000],
-    ["Jan",195000,200000],["Feb",320000,200000],["Mar",285000,200000]
-  ]);
-  renderPipelineBars([
-    ["VMware / Broadcom",1200000],["Oracle",890000],["Microsoft 365",740000],
-    ["Jamf",420000],["Other",550000]
-  ]);
-  renderVendorDonut([["Infrastructure",16],["SaaS/Apps",13],["Security",8],["Other",5]]);
-  renderInitiativesChart([["Consolidation",480000],["Renegotiation",360000],
-    ["Right-sizing",240000],["New deals",160000]]);
-  set("v-savings","$1.24M"); set("d-savings","↑ 18% vs. prior year");
-  set("v-expiring","7"); set("d-expiring","3 require immediate action");
-  set("v-vendors","42"); set("d-vendors","Across HNI + KII");
-  set("v-pipeline","$3.8M"); set("d-pipeline","FY2026 total exposure");
-  renderExpiryList([
-    ["VMware / Broadcom","2026-04-30","14",1200000,"Critical"],
-    ["Oracle Fusion","2026-05-15","44",890000,"Critical"],
-    ["Jamf MDM","2026-06-01","61",420000,"At Risk"],
-    ["Zoom","2026-07-01","91",180000,"At Risk"],
-    ["Adobe CC","2026-09-15","167",95000,"On Track"]
-  ]);
-}
-
-function setBadge(state) {
-  const b = document.getElementById("statusBadge");
-  b.className = "status-" + state;
-  b.textContent = state === "loading" ? "Loading…" : state === "live" ? "● Live" : "⚠ Error";
-}
-
-function showError(msg) {
-  const b = document.getElementById("errorBanner");
-  b.style.display = "block";
-  b.textContent = "⚠ " + msg;
-}
-
-// ── Boot ───────────────────────────────────────────────────────────────────
-window.addEventListener("DOMContentLoaded", () => {
-  initMsal();
-  const accounts = msalApp ? msalApp.getAllAccounts() : [];
-  if (accounts.length) {
-    document.getElementById("loginOverlay").style.display = "none";
-    loadDashboard();
   }
 });
 </script>
